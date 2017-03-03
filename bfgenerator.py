@@ -21,8 +21,8 @@ class MemClaim:
     def __le__(self,other): #useful shorthand
         self.set(other)
 
-    def __del__(self):
-        self.genRef.delete(self)
+    '''def __del__(self): #This is unstable.
+        self.genRef.delete(self)'''
 
     def __len__(self):
         return self.length
@@ -99,6 +99,7 @@ class BFGenerator:
     def delete(self,ind):
         
         if(tp(ind) == int):
+            print(self.allocated,ind)
             log("Deleting memory at index {}".format(ind))
             length = self.allocated[ind]
             self.access(ind)

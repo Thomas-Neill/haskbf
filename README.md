@@ -23,8 +23,10 @@ Functions are called like so: ```(func arg1 arg2 arg3)```
 (
 (let puts (macro (string) 
 	(print (+ string "\n"))))
-(let hello "hello")
-(let world "world")
+(let hello (alloc 5 str))
+(set hello "hello")
+(let world (alloc 5 str))
+(set world "world")
 (let WORLD (+ " " world))
 (puts (+ hello WORLD))
 )

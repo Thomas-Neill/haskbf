@@ -106,12 +106,7 @@ def evaluate(expression,names):
             return let(expression[1],evaluate(expression[2],names))
         elif(expression[0] == 'set'):
             generator.set(evaluate(expression[1],names),evaluate(expression[2],names))
-        elif(expression[0] == 'if'):
-            if(evaluate(expression[1],names)):
-                return evaluate(expression[2],names)
-            else:
-                return evaluate(expression[3],names)
-        elif(expression[0] == 'func'):
+        elif(expression[0] == 'macro'):
             return Function(expression[1],expression[2::],names)
         else:
             func = evaluate(expression.pop(0),names)
