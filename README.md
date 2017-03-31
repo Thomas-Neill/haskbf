@@ -1,13 +1,13 @@
 # lang-A--
 A flavor of lisp I wrote that compiles to Brainfuck. Exciting, huh? This probably won't get too complicated, but I'll try to update it periodically
 
-##Syntax
+## Syntax
 
 The syntax is literally Lisp's, so it should be easy to learn.
 All programs are started and terminated by parentheses.
 Functions are called like so: ```(func arg1 arg2 arg3)```
 
-##Builtin Functions
+## Builtin Functions
 
 ```(let name value)``` binds a value to a name. Pretty simple.
 
@@ -23,7 +23,7 @@ Functions are called like so: ```(func arg1 arg2 arg3)```
 
 ```(+ value1 value2)``` Adds/concatenates value1 and value2
 
-##Example Code
+## Example Code
 
 ```
 (
