@@ -1,90 +1,116 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 module BSDL where
---brainfuck domain specific Language
+
 import Control.Monad.State
 import Data.Char
+import Debug.Trace
+import Interpret
 
-data BFToken = Inc | Dec | PtLeft | PtRight | StartLoop | EndLoop | Input | Output
+--define tokens and monad
 
-toCh Inc = '+'
-toCh Dec = '-'
-toCh PtLeft = '<'
-toCh PtRight = '>'
-toCh StartLoop = '['
-toCh EndLoop = ']'
-toCh Input = ','
-toCh Output = '.'
+data Token = INC | DEC | LEFT | RIGHT | INPUT | OUTPUT | BEGIN_LOOP | END_LOOP
 
-type Brainfuck a = State ([BFToken],Int) a
-type Address = Int
+instance Show Token where
+  show = (:[]) . toCh
 
-composeL :: [Brainfuck ()] -> Brainfuck ()
-composeL = foldl1 (>>)
+compile :: [Token] -> String
+compile = map toCh
 
-push :: BFToken -> Brainfuck ()
-push ins = modify (\(x,y) -> (x ++ [ins],y))
+toCh INC = '+'
+toCh DEC = '-'
+toCh LEFT = '<'
+toCh RIGHT = '>'
+toCh INPUT = ','
+toCh OUTPUT = '.'
+toCh BEGIN_LOOP = '['
+toCh END_LOOP = ']'
 
-rep :: BFToken -> Int -> Brainfuck ()
-rep ins n = modify (\(x,y) -> (x ++ replicate n ins,y))
+data BFState = BFState {code :: [Token], allocated :: Int, memLocation :: Int} deriving Show
+initState = BFState [] 1 0
 
-goto = rep PtRight
-back = rep PtLeft
+type Brainfuck a = State BFState a
 
-wipe = do
-  push StartLoop
-  push Dec
-  push EndLoop
+--define pointer
 
-data PointerType = Char
-data Pointer = Pointer Address PointerType | Array { raw :: [Pointer] }
+data Pointer t = Pointer Int
 
-(@@) :: Pointer -> Int -> Pointer
-(Array xs) @@ a = xs !! a
+origin = Pointer 0
 
-class Settable s where
-  set :: Pointer -> s -> Brainfuck ()
+class Type t where
+  size :: t -> Int
+  typeof :: (Pointer t) -> t
+  typeof = const undefined
 
-instance Settable Char where
-  set (Pointer add Char) c = do
-    goto add
-    wipe
-    rep Inc (ord c)
-    back add
+class (Type t) => FromHaskell t a where
+  from :: a -> Brainfuck (Pointer t)
 
-size Char = 1
+--our types
+data BFChar
 
-malloc :: PointerType -> Brainfuck Pointer
-malloc tp = do
-  (x,currentmem) <- get
-  put (x,currentmem + size tp)
-  return $ Pointer currentmem tp
+instance Type BFChar where
+  size = const 1
 
-listOf :: PointerType -> Int -> Brainfuck Pointer
-listOf tp n = do
-  new <- mapM malloc $ replicate n tp
-  return $ Array new
+instance FromHaskell BFChar Char where
+  from ch = do
+    let ch' = ord ch
+    new <- malloc char
+    access new
+    replicateM_ ch' inc
+    return new
 
-fromList :: (Settable s) => [s] -> Brainfuck Pointer
-fromList arr = do
-  (Array pts) <- listOf Char (length arr)
-  composeL $ zipWith set pts arr
-  return $ Array pts
+char = undefined :: BFChar
 
-puts (Pointer add Char) = do
-  goto add
-  push Output
-  back add
-puts (Array pts) = do
-  composeL $ map puts pts
+type Array a = [Pointer a]
 
-program = do
-  c <- fromList "Hello, world!"
-  puts c
+arrayOf :: (Type t) => t -> Int -> Brainfuck (Array t)
+arrayOf t n = mapM malloc $ replicate n t
 
-optimize' (PtLeft:PtRight:xs) = optimize' xs
-optimize' (PtRight:PtLeft:xs) = optimize' xs
-optimize' (x:xs) = x:optimize' xs
-optimize' [] = []
+fromArray :: (FromHaskell t a) => [a] -> Brainfuck (Array t)
+fromArray = mapM from
+--utils
 
-optimize = foldl1 (.) $ replicate 100 optimize'
+push :: Token -> Brainfuck ()
+push x = modify $ \st -> st {code = code st ++ [x]}
 
-main = putStrLn . (map toCh) . optimize . fst . snd $ runState program ([],0)
+inc = push INC
+dec = push DEC
+right = do
+  push RIGHT
+  modify $ \st -> st {memLocation = memLocation st + 1}
+left = do
+  push LEFT
+  modify $ \st -> st {memLocation = memLocation st - 1}
+input = push INPUT
+output = push OUTPUT
+beginl = push BEGIN_LOOP
+endl = push END_LOOP
+
+malloc :: (Type t) => t -> Brainfuck (Pointer t)
+malloc t = do
+  let sz = size t
+  st <- get
+  put $ st { allocated = allocated st + sz}
+  return . Pointer $ allocated st
+
+access :: Pointer t -> Brainfuck ()
+access (Pointer add) = do
+  st <- get
+  let delta = add - memLocation st
+      delta' = abs delta
+      dir = if delta > 0 then right else left
+  replicateM_ delta' dir
+
+putch :: Pointer BFChar -> Brainfuck ()
+putch ptr = do
+  access ptr
+  output
+
+putstr :: Array BFChar -> Brainfuck ()
+putstr = mapM_ putch
+
+--ur program goes here
+prog = do
+  greeting <- fromArray "Hello world!\n"
+  putstr greeting
+
+main = runFromStr . compile . code . snd $ runState prog initState
