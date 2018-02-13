@@ -1,4 +1,4 @@
 # lang-A--
-Transcompiles to brainfuck.
-# Note
-I'm keeping this up because I may gain interest in it again, but this is not in 'active development'.
+A Haskell "DSL" for manipulating Brainfuck
+The end goal is to build Minesweeper, or some other text-based application.
+Maybe an adventure game or something; I don't know.
